@@ -1,15 +1,16 @@
 # Fork 镜像发布
 
-修复基线为官方标签 `1.9.0`，修复在 `1.9.0-fix` 分支维护。普通分支 push 不触发镜像构建。推送匹配 `*.*.*-fix-*` 的版本标签（如 `1.9.0-fix-1`）时，release 工作流先验证后端和前端，再构建并发布 amd64/arm64 镜像；同时保留手动发布入口。
+修复基线为官方标签 `1.9.0`，修复在 `1.9.0-fix` 分支维护。普通分支 push 不触发镜像构建。推送匹配 `*.*.*` 的版本标签（如 `1.9.0-fix-1`）时，release 工作流先验证后端和前端，再构建并发布 amd64/arm64 镜像；同时保留手动发布入口。
 
 在 fork 的 Settings → Secrets and variables → Actions 配置：
 
 | 类型 | 名称 | 内容 |
 | --- | --- | --- |
-| Repository variable | `DOCKERHUB_USERNAME` | 自己的 Docker Hub 用户名，例如 `wangyulie` |
-| Repository secret | `DOCKERHUB_TOKEN` | 对该用户的 `beecount-cloud` 仓库有推送权限的 Token |
+| Repository variable | `DOCKERHUB_NAMESPACE` | 镜像命名空间（个人账号或组织），例如 `wangyulie`；未配置默认 `sunxiao0721` |
+| Repository secret | `DOCKERHUB_USERNAME` | 用于登录 Docker Hub 的账号，需有目标命名空间的推送权限 |
+| Repository secret | `DOCKERHUB_TOKEN` | 登录账号的 Docker Hub Token |
 
-用户名优先取仓库 variable `DOCKERHUB_USERNAME`，兼容同名旧 secret；均未配置时默认 `sunxiao0721`。镜像地址和 Docker 登录用户名使用同一取值。Fork 不会继承上游 Secret；如果 Actions 尚未启用，先在 Actions 页面启用工作流。请在第一次推送发布标签前配置自己的账号，避免尝试发布到默认上游命名空间。
+镜像地址使用 `${{ vars.DOCKERHUB_NAMESPACE || 'sunxiao0721' }}/beecount-cloud`。登录保持上游方式，使用 `DOCKERHUB_USERNAME` 和 `DOCKERHUB_TOKEN` 两个 Secret；命名空间与登录账号独立配置。Fork 不会继承上游 Secret；如果 Actions 尚未启用，先在 Actions 页面启用工作流。请在首次发布前配置自己的命名空间和登录凭据。
 
 发布示例：
 

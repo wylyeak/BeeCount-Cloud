@@ -1,17 +1,17 @@
 name: release
 
-# 推送修复版本标签（如 1.9.0-fix-1）发布镜像和 GitHub Release。
+# 打 tag（如 0.2.0 或 v0.2.0）推 Docker 镜像 + 生成 GitHub Release。
 # 参考 PanWatch 的 release.yml，为 BeeCount-Cloud 定制后端测试步骤 +
 # 前端构建参数。
 
 on:
   push:
     tags:
-      - '*.*.*-fix-*'
+      - '*.*.*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Docker tag to publish (e.g. 1.9.0-fix-1)'
+        description: 'Docker tag to publish (e.g. 0.2.0)'
         required: true
         type: string
       push_latest:
@@ -26,7 +26,7 @@ on:
         default: 'linux/amd64,linux/arm64'
 
 env:
-  IMAGE_NAME: ${{ vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME || 'sunxiao0721' }}/beecount-cloud
+  IMAGE_NAME: ${{ vars.DOCKERHUB_NAMESPACE || 'sunxiao0721' }}/beecount-cloud
 
 jobs:
   release:
@@ -110,7 +110,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME || 'sunxiao0721' }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker metadata
@@ -145,7 +145,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
 
       - name: Generate release notes (tag push only)
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -201,14 +201,14 @@ jobs:
           } > release-notes.md
 
       - name: Create GitHub Release (tag push only)
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.version }}
           body_path: release-notes.md
 
       - name: Send Telegram notification
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' }}
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
