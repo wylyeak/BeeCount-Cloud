@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -131,7 +132,8 @@ def _upsert(db: Session, model, pk_fields: tuple[str, ...], values: dict) -> Non
     if _is_sqlite(bind) or getattr(bind.dialect, "name", "") == "postgresql":
         # SQLite / PG 都支持 ON CONFLICT。这里用 sqlite 方言 insert 生成语句,
         # 实际执行时由 SQLAlchemy 翻译;PG 下走一样的语义。
-        stmt = sqlite_insert(model).values(**values)
+        insert_factory = postgres_insert if bind.dialect.name == "postgresql" else sqlite_insert
+        stmt = insert_factory(model).values(**values)
         update_cols = {k: stmt.excluded[k] for k in values.keys() if k not in pk_fields}
         if update_cols:
             stmt = stmt.on_conflict_do_update(

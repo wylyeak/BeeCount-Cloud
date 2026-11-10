@@ -399,22 +399,28 @@ async def manage_recurring_rule(
 async def execute_due_rules(*, now=None, only_record_id=None, limit=20):
     """Scheduler entry. Every occurrence revalidates user/ledger role and uses a stable write key."""
     now = now or datetime.now(timezone.utc)
-    with wt.SessionLocal() as db:
-        query = (
-            select(MCPStateRecord)
-            .where(
-                MCPStateRecord.kind == "recurring_rule",
-                MCPStateRecord.status == "active",
-                MCPStateRecord.next_due_at <= now,
+    import asyncio
+
+    def load_due_rules():
+        with wt.SessionLocal() as db:
+            query = (
+                select(MCPStateRecord)
+                .where(
+                    MCPStateRecord.kind == "recurring_rule",
+                    MCPStateRecord.status == "active",
+                    MCPStateRecord.next_due_at <= now,
+                )
+                .order_by(MCPStateRecord.next_due_at)
+                .limit(limit)
             )
-            .order_by(MCPStateRecord.next_due_at)
-            .limit(limit)
-        )
-        if only_record_id:
-            query = query.where(MCPStateRecord.id == only_record_id)
-        rules = db.scalars(query).all()
-        for row in rules:
-            db.expunge(row)
+            if only_record_id:
+                query = query.where(MCPStateRecord.id == only_record_id)
+            rules = db.scalars(query).all()
+            for row in rules:
+                db.expunge(row)
+        return rules
+
+    rules = await asyncio.to_thread(load_due_rules)
     results = []
     for row in rules:
         try:

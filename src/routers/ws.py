@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import APIRouter, Query, WebSocket
@@ -39,10 +40,11 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=""
         await websocket.close(code=1008)
         return
 
-    db = SessionLocal()
-    user = db.scalar(select(User).where(User.id == user_id))
-    db.close()
-    if user is None:
+    def user_exists():
+        with SessionLocal() as db:
+            return db.scalar(select(User.id).where(User.id == user_id)) is not None
+
+    if not await asyncio.to_thread(user_exists):
         await websocket.close(code=1008)
         return
 
