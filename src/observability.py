@@ -1,18 +1,64 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections.abc import Awaitable, Callable
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from starlette.responses import Response
 
+from .config import get_settings
 from .metrics import metrics
+
+_file_handler: RotatingFileHandler | None = None
+_logging_lock = threading.RLock()
 
 
 def configure_logging() -> None:
+    """Keep console logging and optionally add one rotating application file."""
+    global _file_handler
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    settings = get_settings()
+    root = logging.getLogger()
+    with _logging_lock:
+        if not settings.log_file_enabled:
+            if _file_handler is not None:
+                root.removeHandler(_file_handler)
+                _file_handler.close()
+                _file_handler = None
+            return
+
+        if not settings.log_file_path.strip():
+            raise ValueError("LOG_FILE_PATH must not be empty when LOG_FILE_ENABLED=true")
+        path = Path(settings.log_file_path).expanduser().absolute()
+        if (
+            _file_handler is not None
+            and _file_handler in root.handlers
+            and _file_handler.baseFilename == str(path)
+            and _file_handler.maxBytes == settings.log_file_max_bytes
+            and _file_handler.backupCount == settings.log_file_backup_count
+        ):
+            return
+
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            path,
+            maxBytes=settings.log_file_max_bytes,
+            backupCount=settings.log_file_backup_count,
+            encoding="utf-8",
+        )
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(message)s"
+        ))
+        if _file_handler is not None:
+            root.removeHandler(_file_handler)
+            _file_handler.close()
+        root.addHandler(handler)
+        _file_handler = handler
 
 
 def install_request_middleware(app: FastAPI) -> None:

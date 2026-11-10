@@ -56,6 +56,31 @@ and also hides them if this endpoint is unavailable on an older backend.
 - Metrics: `GET /metrics`
 - Compose includes container health checks (ready probe)
 
+### Optional application log file
+
+Console logging is enabled by default. To also persist application logs, including
+HTTP response times and application exceptions, add:
+
+```yaml
+environment:
+  LOG_FILE_ENABLED: "true"
+  LOG_FILE_PATH: /data/logs/beecount.log
+  LOG_FILE_MAX_BYTES: "10485760"
+  LOG_FILE_BACKUP_COUNT: "3"
+```
+
+`LOG_FILE_ENABLED` defaults to `false`: no log directory or file is created.
+When enabled, parent directories are created and the path must be writable.
+The existing `/data` volume persists the default file across container recreation.
+File output is UTF-8 with timestamp, level and logger name. At 10 MiB the file
+rotates, retaining up to three backups (`.1`–`.3`) plus the active file.
+Rotation is for the default single-process server; do not share this file across
+multiple worker processes. Recreate the container after changing these settings.
+
+This records Python application logs. Uvicorn's own access/startup streams remain
+under Uvicorn's logging configuration. The existing console format, admin in-memory
+log buffer and `X-Response-Time-Ms` response header are unchanged.
+
 ## 3) Backup
 
 SQLite:
