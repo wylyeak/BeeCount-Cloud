@@ -1,6 +1,6 @@
 # Fork 镜像发布
 
-修复基线为官方标签 `1.9.0`，修复在 `fix` 分支维护。普通分支 push 不触发镜像构建。推送匹配 `*.*.*` 的版本标签（如 `1.9.0-fix.1`）时，release 工作流先验证后端和前端，再构建并发布 amd64/arm64 镜像；同时保留手动发布入口。
+修复基线为官方标签 `1.9.0`，修复在 `1.9.0-fix` 分支维护。普通分支 push 不触发镜像构建。推送匹配 `*.*.*-fix-*` 的版本标签（如 `1.9.0-fix-1`）时，release 工作流先验证后端和前端，再构建并发布 amd64/arm64 镜像；同时保留手动发布入口。
 
 在 fork 的 Settings → Secrets and variables → Actions 配置：
 
@@ -14,13 +14,13 @@
 发布示例：
 
 ```bash
-git switch fix
-git push origin fix
-git tag -a 1.9.0-fix.1 -m "PostgreSQL compatibility fixes"
-git push origin 1.9.0-fix.1
+git switch 1.9.0-fix
+git push origin 1.9.0-fix
+git tag -a 1.9.0-fix-1 -m "PostgreSQL compatibility fixes"
+git push origin 1.9.0-fix-1
 ```
 
-标签标记当前提交；继续提交 fix 不会移动已有标签。后续发布使用新标签，如 `1.9.0-fix.2`，不强制覆盖旧标签。发布后镜像示例：`wangyulie/beecount-cloud:1.9.0-fix.1`。标签发布沿用上游行为，同时更新 latest 并创建 GitHub Release；手动发布可关闭 push_latest。
+标签标记当前提交；继续提交 1.9.0-fix 不会移动已有标签。后续发布使用新标签，如 `1.9.0-fix-2`，不强制覆盖旧标签。发布后镜像示例：`wangyulie/beecount-cloud:1.9.0-fix-1`。标签发布沿用上游行为，同时更新 latest 并创建 GitHub Release；手动发布可关闭 push_latest。
 
 构建成功后核对镜像 revision 与 Git 提交，拉取发布的镜像并固定 RepoDigest，再通过 Compose 更新本机。构建未成功时保留当前服务；不能用本地构建替代发布。凭据、账本、数据库和家庭实例私有配置不得提交。
 
